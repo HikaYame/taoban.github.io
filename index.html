@@ -1,0 +1,1021 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Realtime Voice Changer</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #07111f;
+      --panel: rgba(10, 20, 38, 0.92);
+      --panel-2: rgba(19, 33, 56, 0.92);
+      --line: rgba(127, 181, 255, 0.18);
+      --text: #eff5ff;
+      --muted: #95a8c7;
+      --accent: #60a5fa;
+      --accent-2: #8b5cf6;
+      --danger: #fb7185;
+      --ok: #34d399;
+      --warning: #fbbf24;
+      --shadow: 0 24px 50px rgba(0, 0, 0, 0.4);
+      --radius: 20px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(96, 165, 250, 0.18), transparent 32%),
+        radial-gradient(circle at top right, rgba(139, 92, 246, 0.2), transparent 28%),
+        linear-gradient(160deg, #030712 0%, #08111f 48%, #040816 100%);
+      padding: 24px;
+    }
+
+    .app {
+      max-width: 1240px;
+      margin: 0 auto;
+      display: grid;
+      gap: 20px;
+    }
+
+    .hero,
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+    }
+
+    .hero {
+      display: grid;
+      gap: 18px;
+      padding: 24px;
+    }
+
+    .hero-top {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: center;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(2rem, 4vw, 3.2rem);
+      line-height: 1.05;
+      letter-spacing: -0.03em;
+    }
+
+    .subtitle {
+      margin: 10px 0 0;
+      max-width: 820px;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    .pill-row,
+    .status-row,
+    .button-row,
+    .preset-row,
+    .toggle-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .pill,
+    .status,
+    .toggle,
+    button,
+    select,
+    input[type="range"],
+    input[type="text"] {
+      border-radius: 14px;
+      border: 1px solid var(--line);
+    }
+
+    .pill,
+    .status,
+    .toggle {
+      background: rgba(96, 165, 250, 0.08);
+      padding: 10px 14px;
+      color: var(--muted);
+      font-size: 0.96rem;
+    }
+
+    .status strong {
+      color: var(--text);
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      display: inline-block;
+      margin-right: 8px;
+      background: var(--warning);
+      box-shadow: 0 0 10px rgba(251, 191, 36, 0.6);
+    }
+
+    .status-dot.live {
+      background: var(--ok);
+      box-shadow: 0 0 14px rgba(52, 211, 153, 0.8);
+    }
+
+    .controls-grid {
+      display: grid;
+      gap: 20px;
+      grid-template-columns: 1.2fr 0.9fr;
+    }
+
+    .panel {
+      padding: 22px;
+    }
+
+    .panel h2 {
+      margin: 0 0 16px;
+      font-size: 1.18rem;
+    }
+
+    .group-label {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    select,
+    input[type="text"] {
+      width: 100%;
+      background: rgba(8, 16, 30, 0.95);
+      color: var(--text);
+      padding: 14px 16px;
+      font-size: 1rem;
+      outline: none;
+    }
+
+    button {
+      appearance: none;
+      background: linear-gradient(135deg, rgba(96, 165, 250, 0.25), rgba(139, 92, 246, 0.25));
+      color: var(--text);
+      padding: 13px 18px;
+      font-size: 0.98rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+    }
+
+    button:hover:not(:disabled) {
+      transform: translateY(-1px);
+      border-color: rgba(139, 92, 246, 0.45);
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .primary {
+      background: linear-gradient(135deg, rgba(37, 99, 235, 0.95), rgba(124, 58, 237, 0.95));
+    }
+
+    .danger {
+      background: linear-gradient(135deg, rgba(190, 24, 93, 0.9), rgba(225, 29, 72, 0.95));
+    }
+
+    .ghost {
+      background: rgba(96, 165, 250, 0.1);
+    }
+
+    .toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .toggle input {
+      accent-color: var(--accent);
+      width: 18px;
+      height: 18px;
+    }
+
+    .sliders {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .slider-card {
+      background: var(--panel-2);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 16px;
+    }
+
+    .slider-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .slider-head strong {
+      font-size: 0.98rem;
+    }
+
+    .slider-head span {
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+      font-size: 0.92rem;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      margin: 0;
+      accent-color: var(--accent);
+      background: transparent;
+    }
+
+    .meter-grid {
+      display: grid;
+      gap: 14px;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      margin-top: 16px;
+    }
+
+    .mini-stat {
+      background: var(--panel-2);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 14px;
+    }
+
+    .mini-stat small {
+      display: block;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .mini-stat strong {
+      font-size: 1.15rem;
+    }
+
+    .canvas-wrap {
+      position: relative;
+      overflow: hidden;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(9, 17, 30, 0.8), rgba(6, 12, 24, 1));
+      padding: 12px;
+    }
+
+    canvas {
+      width: 100%;
+      height: 260px;
+      display: block;
+    }
+
+    .note,
+    .warning-box {
+      margin-top: 16px;
+      border-radius: 16px;
+      padding: 14px 16px;
+      line-height: 1.65;
+      color: var(--muted);
+      background: rgba(96, 165, 250, 0.08);
+      border: 1px solid rgba(96, 165, 250, 0.14);
+    }
+
+    .warning-box {
+      background: rgba(251, 191, 36, 0.08);
+      border-color: rgba(251, 191, 36, 0.18);
+    }
+
+    .preset-row input[type="text"] {
+      flex: 1;
+      min-width: 180px;
+    }
+
+    .credits {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.9rem;
+      padding-bottom: 6px;
+    }
+
+    @media (max-width: 980px) {
+      .controls-grid,
+      .sliders,
+      .meter-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .hero,
+      .panel {
+        padding: 18px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="hero">
+      <div class="hero-top">
+        <div>
+          <div class="pill-row">
+            <span class="pill">Web Audio API</span>
+            <span class="pill">Low Latency Preview</span>
+            <span class="pill">Chrome / Edge</span>
+          </div>
+          <h1>Realtime Voice Changer</h1>
+          <p class="subtitle">
+            Nói vào micro và nghe lại ngay với giọng đã biến đổi. Trang này chạy hoàn toàn client-side,
+            tối ưu cho preview độ trễ thấp, chat voice và thử preset giọng nhanh ngay trên trình duyệt.
+          </p>
+        </div>
+        <div class="status-row">
+          <div class="status"><span id="micDot" class="status-dot"></span><strong id="micStatus">Microphone: chưa bật</strong></div>
+          <div class="status"><strong id="audioState">Audio Engine: idle</strong></div>
+        </div>
+      </div>
+      <div class="button-row">
+        <button id="startBtn" class="primary">Start Voice</button>
+        <button id="stopBtn" class="danger" disabled>Stop</button>
+        <button id="previewBtn" class="ghost" disabled>Tắt Preview</button>
+        <button id="resetBtn" class="ghost">Reset mặc định</button>
+      </div>
+      <div class="toggle-row">
+        <label class="toggle"><input type="checkbox" id="gameMode" checked /> Game Mode (độ trễ thấp)</label>
+        <label class="toggle"><input type="checkbox" id="noiseSuppression" checked /> Noise suppression</label>
+        <label class="toggle"><input type="checkbox" id="autoGainControl" checked /> Auto gain control</label>
+        <label class="toggle"><input type="checkbox" id="echoCancellation" /> Echo cancellation</label>
+      </div>
+    </section>
+
+    <section class="controls-grid">
+      <section class="panel">
+        <h2>Voice Controls</h2>
+        <label class="group-label" for="voiceMode">Kiểu giọng</label>
+        <select id="voiceMode">
+          <option value="male">Giọng nam</option>
+          <option value="female">Giọng nữ</option>
+          <option value="child">Giọng trẻ em</option>
+          <option value="elder">Giọng người già</option>
+          <option value="robot">Giọng robot</option>
+          <option value="monster">Giọng quái vật</option>
+          <option value="custom">Tùy chỉnh</option>
+        </select>
+
+        <div class="sliders" id="sliderGrid"></div>
+
+        <div class="preset-row" style="margin-top: 18px;">
+          <input id="presetName" type="text" maxlength="40" placeholder="Tên preset, ví dụ: Discord Robot" />
+          <button id="savePresetBtn">Lưu preset</button>
+          <button id="deletePresetBtn" class="ghost">Xóa preset</button>
+        </div>
+
+        <label class="group-label" for="presetSelect" style="margin-top: 16px;">Preset đã lưu</label>
+        <div class="preset-row">
+          <select id="presetSelect"></select>
+          <button id="loadPresetBtn" class="ghost">Load preset</button>
+        </div>
+
+        <div class="meter-grid">
+          <div class="mini-stat">
+            <small>Pitch Ratio</small>
+            <strong id="pitchStat">1.00x</strong>
+          </div>
+          <div class="mini-stat">
+            <small>Output Speed</small>
+            <strong id="speedStat">1.00x</strong>
+          </div>
+          <div class="mini-stat">
+            <small>Latency Hint</small>
+            <strong id="latencyStat">interactive</strong>
+          </div>
+        </div>
+
+        <div class="note">
+          <strong>Lưu ý:</strong> Trình duyệt không thể tự động đẩy âm thanh đã xử lý vào Discord/game như một “virtual microphone” thuần web.
+          Trang này tập trung vào nghe preview thời gian thực với độ trễ thấp nhất có thể trong browser.
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Realtime Waveform</h2>
+        <div class="canvas-wrap">
+          <canvas id="waveCanvas" width="900" height="260"></canvas>
+        </div>
+        <div class="warning-box" id="browserHint">
+          Hãy dùng Chrome hoặc Edge mới, cho phép microphone và giữ tab ở foreground để pipeline audio hoạt động ổn định nhất.
+        </div>
+      </section>
+    </section>
+
+    <p class="credits">Single-file HTML · Không cần backend · Không dùng thư viện ngoài</p>
+  </main>
+
+  <script>
+    // =========================
+    // 1) Cấu hình mặc định và preset từng giọng.
+    //    Mỗi profile sẽ điều chỉnh các slider để mô phỏng chất giọng khác nhau.
+    // =========================
+    const sliderSchema = [
+      { key: 'pitch', label: 'Pitch', min: 0.55, max: 1.85, step: 0.01, value: 1.0 },
+      { key: 'speed', label: 'Speed', min: 0.65, max: 1.5, step: 0.01, value: 1.0 },
+      { key: 'volume', label: 'Volume', min: 0.0, max: 2.0, step: 0.01, value: 1.0 },
+      { key: 'echo', label: 'Echo', min: 0.0, max: 0.95, step: 0.01, value: 0.0 },
+      { key: 'reverb', label: 'Reverb', min: 0.0, max: 1.0, step: 0.01, value: 0.1 },
+      { key: 'distortion', label: 'Distortion', min: 0.0, max: 1.0, step: 0.01, value: 0.0 }
+    ];
+
+    const defaultValues = Object.fromEntries(sliderSchema.map((item) => [item.key, item.value]));
+
+    const voiceProfiles = {
+      male:    { pitch: 0.82, speed: 0.96, volume: 1.05, echo: 0.08, reverb: 0.12, distortion: 0.02 },
+      female:  { pitch: 1.28, speed: 1.04, volume: 1.0,  echo: 0.06, reverb: 0.16, distortion: 0.01 },
+      child:   { pitch: 1.58, speed: 1.18, volume: 1.0,  echo: 0.05, reverb: 0.1,  distortion: 0.0 },
+      elder:   { pitch: 0.9,  speed: 0.9,  volume: 1.0,  echo: 0.14, reverb: 0.25, distortion: 0.05 },
+      robot:   { pitch: 1.02, speed: 1.0,  volume: 1.0,  echo: 0.18, reverb: 0.05, distortion: 0.4 },
+      monster: { pitch: 0.65, speed: 0.86, volume: 1.18, echo: 0.22, reverb: 0.22, distortion: 0.5 },
+      custom:  { ...defaultValues }
+    };
+
+    const STORAGE_KEY = 'rt-voice-changer-presets-v1';
+
+    // =========================
+    // 2) Cache các phần tử giao diện.
+    // =========================
+    const els = {
+      startBtn: document.getElementById('startBtn'),
+      stopBtn: document.getElementById('stopBtn'),
+      previewBtn: document.getElementById('previewBtn'),
+      resetBtn: document.getElementById('resetBtn'),
+      savePresetBtn: document.getElementById('savePresetBtn'),
+      deletePresetBtn: document.getElementById('deletePresetBtn'),
+      loadPresetBtn: document.getElementById('loadPresetBtn'),
+      presetSelect: document.getElementById('presetSelect'),
+      presetName: document.getElementById('presetName'),
+      voiceMode: document.getElementById('voiceMode'),
+      gameMode: document.getElementById('gameMode'),
+      noiseSuppression: document.getElementById('noiseSuppression'),
+      autoGainControl: document.getElementById('autoGainControl'),
+      echoCancellation: document.getElementById('echoCancellation'),
+      micStatus: document.getElementById('micStatus'),
+      micDot: document.getElementById('micDot'),
+      audioState: document.getElementById('audioState'),
+      pitchStat: document.getElementById('pitchStat'),
+      speedStat: document.getElementById('speedStat'),
+      latencyStat: document.getElementById('latencyStat'),
+      sliderGrid: document.getElementById('sliderGrid'),
+      waveCanvas: document.getElementById('waveCanvas'),
+      browserHint: document.getElementById('browserHint')
+    };
+
+    const sliderElements = {};
+    const valueLabels = {};
+    const state = {
+      previewEnabled: true,
+      audioContext: null,
+      stream: null,
+      sourceNode: null,
+      inputGain: null,
+      pitchNode: null,
+      distortionNode: null,
+      tremoloGain: null,
+      tremoloOsc: null,
+      tremoloDepth: null,
+      robotOsc: null,
+      robotGain: null,
+      dryGain: null,
+      wetGain: null,
+      convolver: null,
+      delay: null,
+      delayFeedback: null,
+      outputGain: null,
+      analyser: null,
+      monitorSilencer: null,
+      animationFrame: null,
+      currentMode: 'male',
+      values: { ...voiceProfiles.male }
+    };
+
+    // =========================
+    // 3) AudioWorklet dùng ring buffer + resampling.
+    //    Mục tiêu là thay đổi pitch/speed realtime theo kiểu lightweight.
+    // =========================
+    const workletSource = `
+      class PitchShiftProcessor extends AudioWorkletProcessor {
+        constructor() {
+          super();
+          this.size = 16384;
+          this.buffer = new Float32Array(this.size);
+          this.writeIndex = 0;
+          this.readIndex = 0;
+          this.delaySamples = 2048;
+          this.pitch = 1.0;
+          this.speed = 1.0;
+          this.mix = 1.0;
+          this.port.onmessage = (event) => {
+            const data = event.data || {};
+            if (typeof data.pitch === 'number') this.pitch = data.pitch;
+            if (typeof data.speed === 'number') this.speed = data.speed;
+            if (typeof data.mix === 'number') this.mix = data.mix;
+            if (typeof data.delaySamples === 'number') this.delaySamples = data.delaySamples;
+          };
+        }
+
+        process(inputs, outputs) {
+          const input = inputs[0];
+          const output = outputs[0];
+          if (!output.length) return true;
+          const inputCh = input[0] || new Float32Array(128);
+          const outputCh = output[0];
+          const ratio = Math.max(0.45, Math.min(2.2, this.pitch * this.speed));
+          const correction = (((this.writeIndex - this.readIndex + this.size) % this.size) - this.delaySamples) * 0.00015;
+          const step = Math.max(0.45, Math.min(2.1, ratio + correction));
+
+          for (let i = 0; i < inputCh.length; i++) {
+            this.buffer[this.writeIndex] = inputCh[i];
+            this.writeIndex = (this.writeIndex + 1) % this.size;
+
+            const base = Math.floor(this.readIndex) % this.size;
+            const next = (base + 1) % this.size;
+            const frac = this.readIndex - Math.floor(this.readIndex);
+            const shifted = this.buffer[base] * (1 - frac) + this.buffer[next] * frac;
+            const mixed = shifted * this.mix + inputCh[i] * (1 - this.mix);
+            outputCh[i] = Number.isFinite(mixed) ? mixed : 0;
+            this.readIndex = (this.readIndex + step + this.size) % this.size;
+          }
+          return true;
+        }
+      }
+      registerProcessor('pitch-shift-processor', PitchShiftProcessor);
+    `;
+
+    // =========================
+    // 4) Sinh slider UI động để code gọn và dễ mở rộng.
+    // =========================
+    function buildSliders() {
+      els.sliderGrid.innerHTML = '';
+      sliderSchema.forEach((item) => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'slider-card';
+        wrapper.innerHTML = `
+          <div class="slider-head">
+            <strong>${item.label}</strong>
+            <span id="${item.key}Value"></span>
+          </div>
+          <input id="${item.key}" type="range" min="${item.min}" max="${item.max}" step="${item.step}" value="${item.value}" />
+        `;
+        els.sliderGrid.appendChild(wrapper);
+        sliderElements[item.key] = wrapper.querySelector('input');
+        valueLabels[item.key] = wrapper.querySelector('span');
+        sliderElements[item.key].addEventListener('input', () => {
+          state.values[item.key] = Number(sliderElements[item.key].value);
+          els.voiceMode.value = 'custom';
+          state.currentMode = 'custom';
+          syncUI();
+          applyParameters();
+        });
+      });
+    }
+
+    // =========================
+    // 5) Helper tạo curve distortion và impulse response cho reverb.
+    // =========================
+    function makeDistortionCurve(amount = 0) {
+      const k = Math.max(0, amount) * 600;
+      const n = 2048;
+      const curve = new Float32Array(n);
+      for (let i = 0; i < n; i++) {
+        const x = (i * 2) / n - 1;
+        curve[i] = ((3 + k) * x * 20 * (Math.PI / 180)) / (Math.PI + k * Math.abs(x));
+      }
+      return curve;
+    }
+
+    function createImpulseResponse(context, wet = 0.2) {
+      const length = Math.max(1, Math.floor(context.sampleRate * 1.8));
+      const impulse = context.createBuffer(2, length, context.sampleRate);
+      for (let ch = 0; ch < 2; ch++) {
+        const data = impulse.getChannelData(ch);
+        for (let i = 0; i < length; i++) {
+          const decay = Math.pow(1 - i / length, 2.2);
+          data[i] = (Math.random() * 2 - 1) * decay * (0.2 + wet * 0.8);
+        }
+      }
+      return impulse;
+    }
+
+    // =========================
+    // 6) Cập nhật text hiển thị ngoài UI.
+    // =========================
+    function formatValue(key, value) {
+      if (key === 'volume') return `${value.toFixed(2)}x`;
+      if (key === 'pitch' || key === 'speed') return `${value.toFixed(2)}x`;
+      return `${Math.round(value * 100)}%`;
+    }
+
+    function syncUI() {
+      sliderSchema.forEach(({ key }) => {
+        sliderElements[key].value = state.values[key];
+        valueLabels[key].textContent = formatValue(key, state.values[key]);
+      });
+      els.pitchStat.textContent = `${state.values.pitch.toFixed(2)}x`;
+      els.speedStat.textContent = `${state.values.speed.toFixed(2)}x`;
+      els.latencyStat.textContent = els.gameMode.checked ? 'interactive / ultra-low' : 'balanced';
+      els.previewBtn.textContent = state.previewEnabled ? 'Tắt Preview' : 'Bật Preview';
+    }
+
+    // =========================
+    // 7) Đọc / ghi preset vào localStorage.
+    // =========================
+    function readPresets() {
+      try {
+        return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+      } catch {
+        return {};
+      }
+    }
+
+    function writePresets(presets) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(presets));
+      renderPresetOptions();
+    }
+
+    function renderPresetOptions() {
+      const presets = readPresets();
+      const names = Object.keys(presets).sort((a, b) => a.localeCompare(b, 'vi'));
+      els.presetSelect.innerHTML = '';
+      if (!names.length) {
+        const option = document.createElement('option');
+        option.value = '';
+        option.textContent = 'Chưa có preset nào';
+        els.presetSelect.appendChild(option);
+        return;
+      }
+      names.forEach((name) => {
+        const option = document.createElement('option');
+        option.value = name;
+        option.textContent = name;
+        els.presetSelect.appendChild(option);
+      });
+    }
+
+    // =========================
+    // 8) Tạo AudioContext + chuỗi xử lý âm thanh.
+    // =========================
+    async function createAudioEngine() {
+      if (!window.AudioContext || !window.AudioWorkletNode) {
+        throw new Error('Trình duyệt hiện tại chưa hỗ trợ AudioWorklet. Hãy mở bằng Chrome hoặc Edge mới.');
+      }
+
+      const constraints = {
+        audio: {
+          channelCount: 1,
+          echoCancellation: els.echoCancellation.checked,
+          noiseSuppression: els.noiseSuppression.checked,
+          autoGainControl: els.autoGainControl.checked,
+          latency: els.gameMode.checked ? 0.01 : 0.04,
+          sampleRate: 48000
+        }
+      };
+
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      const context = new AudioContext({ latencyHint: els.gameMode.checked ? 'interactive' : 'playback', sampleRate: 48000 });
+      await context.audioWorklet.addModule(URL.createObjectURL(new Blob([workletSource], { type: 'application/javascript' })));
+
+      const sourceNode = context.createMediaStreamSource(stream);
+      const inputGain = context.createGain();
+      const pitchNode = new AudioWorkletNode(context, 'pitch-shift-processor', {
+        numberOfInputs: 1,
+        numberOfOutputs: 1,
+        outputChannelCount: [1]
+      });
+      const distortionNode = context.createWaveShaper();
+      distortionNode.oversample = '4x';
+      const dryGain = context.createGain();
+      const wetGain = context.createGain();
+      const outputGain = context.createGain();
+      const analyser = context.createAnalyser();
+      analyser.fftSize = 2048;
+      analyser.smoothingTimeConstant = 0.82;
+      const delay = context.createDelay(0.6);
+      const delayFeedback = context.createGain();
+      const convolver = context.createConvolver();
+      const robotOsc = context.createOscillator();
+      const robotGain = context.createGain();
+      const tremoloOsc = context.createOscillator();
+      const tremoloDepth = context.createGain();
+      const tremoloGain = context.createGain();
+      const monitorSilencer = context.createGain();
+
+      robotOsc.type = 'square';
+      robotOsc.frequency.value = 32;
+      robotGain.gain.value = 0;
+      tremoloOsc.type = 'sine';
+      tremoloOsc.frequency.value = 4.5;
+      tremoloDepth.gain.value = 0;
+      tremoloGain.gain.value = 1;
+      monitorSilencer.gain.value = 0;
+
+      sourceNode.connect(inputGain);
+      inputGain.connect(pitchNode);
+      pitchNode.connect(distortionNode);
+      distortionNode.connect(dryGain);
+      distortionNode.connect(wetGain);
+      wetGain.connect(delay);
+      wetGain.connect(convolver);
+      delay.connect(delayFeedback);
+      delayFeedback.connect(delay);
+      delay.connect(outputGain);
+      convolver.connect(outputGain);
+      dryGain.connect(tremoloGain);
+      tremoloGain.connect(outputGain);
+      robotOsc.connect(robotGain);
+      robotGain.connect(outputGain.gain);
+      tremoloOsc.connect(tremoloDepth);
+      tremoloDepth.connect(tremoloGain.gain);
+      outputGain.connect(analyser);
+      analyser.connect(context.destination);
+      analyser.connect(monitorSilencer);
+      monitorSilencer.connect(context.destination);
+
+      robotOsc.start();
+      tremoloOsc.start();
+
+      state.audioContext = context;
+      state.stream = stream;
+      state.sourceNode = sourceNode;
+      state.inputGain = inputGain;
+      state.pitchNode = pitchNode;
+      state.distortionNode = distortionNode;
+      state.tremoloGain = tremoloGain;
+      state.tremoloOsc = tremoloOsc;
+      state.tremoloDepth = tremoloDepth;
+      state.robotOsc = robotOsc;
+      state.robotGain = robotGain;
+      state.dryGain = dryGain;
+      state.wetGain = wetGain;
+      state.convolver = convolver;
+      state.delay = delay;
+      state.delayFeedback = delayFeedback;
+      state.outputGain = outputGain;
+      state.analyser = analyser;
+      state.monitorSilencer = monitorSilencer;
+
+      applyParameters();
+      updateStatus(true, 'Audio Engine: running');
+      drawWaveform();
+    }
+
+    // =========================
+    // 9) Áp tham số vào chain khi slider / mode thay đổi.
+    // =========================
+    function applyParameters() {
+      if (!state.audioContext) {
+        syncUI();
+        return;
+      }
+
+      const now = state.audioContext.currentTime;
+      const { pitch, speed, volume, echo, reverb, distortion } = state.values;
+      const mode = state.currentMode;
+      const lowLatencyDelay = els.gameMode.checked ? 960 : 2048;
+
+      state.pitchNode.port.postMessage({
+        pitch,
+        speed,
+        mix: 1,
+        delaySamples: lowLatencyDelay
+      });
+
+      state.distortionNode.curve = makeDistortionCurve(distortion);
+      state.distortionNode.oversample = distortion > 0.2 ? '4x' : '2x';
+      state.dryGain.gain.setTargetAtTime(1 - Math.min(0.35, echo * 0.22), now, 0.01);
+      state.wetGain.gain.setTargetAtTime(0.12 + echo * 0.55 + reverb * 0.18, now, 0.01);
+      state.delay.delayTime.setTargetAtTime(els.gameMode.checked ? 0.06 : 0.1, now, 0.01);
+      state.delayFeedback.gain.setTargetAtTime(echo * 0.6, now, 0.01);
+      state.convolver.buffer = createImpulseResponse(state.audioContext, reverb);
+      state.outputGain.gain.setTargetAtTime(state.previewEnabled ? volume : 0, now, 0.01);
+      state.monitorSilencer.gain.setTargetAtTime(0, now, 0.01);
+
+      // Mode-specific coloring.
+      let tremoloRate = 4.5;
+      let tremoloAmount = 0;
+      let robotDepth = 0;
+      if (mode === 'elder') {
+        tremoloRate = 5.2;
+        tremoloAmount = 0.18;
+      } else if (mode === 'robot') {
+        robotDepth = 0.18;
+        tremoloRate = 24;
+        tremoloAmount = 0.1;
+      } else if (mode === 'monster') {
+        robotDepth = 0.08;
+        tremoloRate = 2.2;
+        tremoloAmount = 0.08;
+      }
+
+      state.robotOsc.frequency.setTargetAtTime(mode === 'robot' ? 36 : 24, now, 0.01);
+      state.robotGain.gain.setTargetAtTime(robotDepth, now, 0.01);
+      state.tremoloOsc.frequency.setTargetAtTime(tremoloRate, now, 0.01);
+      state.tremoloDepth.gain.setTargetAtTime(tremoloAmount, now, 0.01);
+      state.tremoloGain.gain.setTargetAtTime(1 - tremoloAmount * 0.5, now, 0.01);
+
+      syncUI();
+    }
+
+    // =========================
+    // 10) Vẽ waveform realtime từ analyser node.
+    // =========================
+    function drawWaveform() {
+      if (!state.analyser) return;
+      const canvas = els.waveCanvas;
+      const ctx = canvas.getContext('2d');
+      const buffer = new Uint8Array(state.analyser.fftSize);
+
+      const render = () => {
+        state.animationFrame = requestAnimationFrame(render);
+        state.analyser.getByteTimeDomainData(buffer);
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#07101d';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        const gridColor = 'rgba(96, 165, 250, 0.10)';
+        ctx.strokeStyle = gridColor;
+        ctx.lineWidth = 1;
+        for (let i = 0; i <= 8; i++) {
+          const y = (canvas.height / 8) * i;
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(canvas.width, y);
+          ctx.stroke();
+        }
+
+        const gradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
+        gradient.addColorStop(0, '#60a5fa');
+        gradient.addColorStop(1, '#8b5cf6');
+        ctx.strokeStyle = gradient;
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        for (let i = 0; i < buffer.length; i++) {
+          const x = (i / (buffer.length - 1)) * canvas.width;
+          const y = (buffer[i] / 255) * canvas.height;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      };
+      cancelAnimationFrame(state.animationFrame);
+      render();
+    }
+
+    // =========================
+    // 11) Cập nhật badge trạng thái microphone / engine.
+    // =========================
+    function updateStatus(active, audioText = 'Audio Engine: idle') {
+      els.micStatus.textContent = active ? 'Microphone: đang hoạt động' : 'Microphone: chưa bật';
+      els.micDot.classList.toggle('live', active);
+      els.audioState.textContent = audioText;
+      els.startBtn.disabled = active;
+      els.stopBtn.disabled = !active;
+      els.previewBtn.disabled = !active;
+    }
+
+    // =========================
+    // 12) Dừng toàn bộ audio graph và giải phóng microphone.
+    // =========================
+    async function stopAudio() {
+      cancelAnimationFrame(state.animationFrame);
+      if (state.stream) {
+        state.stream.getTracks().forEach((track) => track.stop());
+      }
+      if (state.robotOsc) {
+        try { state.robotOsc.stop(); } catch {}
+      }
+      if (state.tremoloOsc) {
+        try { state.tremoloOsc.stop(); } catch {}
+      }
+      if (state.audioContext) {
+        await state.audioContext.close();
+      }
+      Object.keys(state).forEach((key) => {
+        if (!['previewEnabled', 'currentMode', 'values'].includes(key)) {
+          state[key] = null;
+        }
+      });
+      updateStatus(false, 'Audio Engine: idle');
+    }
+
+    // =========================
+    // 13) Apply một voice mode vào state và UI.
+    // =========================
+    function applyVoiceProfile(mode) {
+      state.currentMode = mode;
+      state.values = { ...(voiceProfiles[mode] || defaultValues) };
+      syncUI();
+      applyParameters();
+    }
+
+    // =========================
+    // 14) Event listeners chính.
+    // =========================
+    els.voiceMode.addEventListener('change', () => applyVoiceProfile(els.voiceMode.value));
+
+    els.previewBtn.addEventListener('click', () => {
+      state.previewEnabled = !state.previewEnabled;
+      applyParameters();
+    });
+
+    els.resetBtn.addEventListener('click', () => {
+      els.voiceMode.value = 'male';
+      applyVoiceProfile('male');
+    });
+
+    els.startBtn.addEventListener('click', async () => {
+      try {
+        if (!navigator.mediaDevices?.getUserMedia) {
+          throw new Error('Trình duyệt không hỗ trợ truy cập microphone.');
+        }
+        if (state.audioContext) return;
+        await createAudioEngine();
+      } catch (error) {
+        console.error(error);
+        els.browserHint.textContent = error.message || 'Không thể khởi tạo audio engine.';
+        updateStatus(false, 'Audio Engine: error');
+      }
+    });
+
+    els.stopBtn.addEventListener('click', async () => {
+      await stopAudio();
+    });
+
+    ['gameMode', 'noiseSuppression', 'autoGainControl', 'echoCancellation'].forEach((id) => {
+      els[id].addEventListener('change', async () => {
+        syncUI();
+        if (!state.audioContext) return;
+        const previousPreview = state.previewEnabled;
+        await stopAudio();
+        state.previewEnabled = previousPreview;
+        await createAudioEngine();
+      });
+    });
+
+    els.savePresetBtn.addEventListener('click', () => {
+      const name = els.presetName.value.trim();
+      if (!name) {
+        els.browserHint.textContent = 'Nhập tên preset trước khi lưu.';
+        return;
+      }
+      const presets = readPresets();
+      presets[name] = { ...state.values };
+      writePresets(presets);
+      els.presetSelect.value = name;
+      els.browserHint.textContent = `Đã lưu preset “${name}”.`;
+    });
+
+    els.loadPresetBtn.addEventListener('click', () => {
+      const name = els.presetSelect.value;
+      const preset = readPresets()[name];
+      if (!preset) return;
+      state.currentMode = 'custom';
+      els.voiceMode.value = 'custom';
+      state.values = { ...defaultValues, ...preset };
+      syncUI();
+      applyParameters();
+      els.browserHint.textContent = `Đã load preset “${name}”.`;
+    });
+
+    els.deletePresetBtn.addEventListener('click', () => {
+      const name = els.presetSelect.value;
+      const presets = readPresets();
+      if (!presets[name]) return;
+      delete presets[name];
+      writePresets(presets);
+      els.browserHint.textContent = `Đã xóa preset “${name}”.`;
+    });
+
+    // =========================
+    // 15) Khởi tạo UI ban đầu.
+    // =========================
+    buildSliders();
+    renderPresetOptions();
+    applyVoiceProfile('male');
+  </script>
+</body>
+</html>
